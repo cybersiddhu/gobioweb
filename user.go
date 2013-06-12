@@ -6,6 +6,7 @@ import (
 )
 
 type User struct {
+	Id        int64
 	Email     string
 	FirstName string
 	LastName  string
@@ -21,30 +22,34 @@ INSERT into users(email,firstname,lastname,password)
 values(:foo,:bar,:zas,:baz)
 `
 
-func CreateUser(dbh *dbi.DB, user *User) error {
-	pb, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+func (u *User) Create(dbh *dbi.DB) error {
+	pb, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
-		 return err
+		return err
 	}
 
-	_, err = dbh.Exec(userInsertStmt,user.Email, user.FirstName, user.LastName, string(pb))
+	rs, err := dbh.Exec(userInsertStmt, u.Email, u.FirstName, u.LastName, string(pb))
 	if err != nil {
-		 return err
+		return err
 	}
+
+	id, err := rs.LastInsertId()
+	if err != nil {
+		return err
+	}
+	u.Id = id
 	return nil
 }
 
-func ValidateUser(dbh *dbi.DB, user *User) error {
+func (u *User) Validate(dbh *dbi.DB) error {
 	var hashedPass string
-	err := dbh.QueryRow(userCheckStmt, user.Email).Scan(&hashedPass)
+	err := dbh.QueryRow(userCheckStmt, u.Email).Scan(&hashedPass)
 	if err != nil {
 		return err
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(user.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(u.Password))
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
-

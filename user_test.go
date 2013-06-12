@@ -39,7 +39,7 @@ func TestCreateUser(t *testing.T) {
 		LastName:  "jorn",
 		Password:  "hashy",
 	}
-	if err := CreateUser(dbh, u); err != nil {
+	if err := u.Create(dbh); err != nil {
 		t.Errorf("error %s", err.Error())
 	}
 }
@@ -57,11 +57,11 @@ func TestValidateUser(t *testing.T) {
 		Password:  "hashy",
 	}
 
-	if err := CreateUser(dbh, u); err != nil {
+	if err := u.Create(dbh); err != nil {
 		t.Errorf("error %s", err.Error())
 	}
 
-	if err := ValidateUser(dbh, u); err != nil {
+	if err := u.Validate(dbh); err != nil {
 		t.Errorf("Error %s", err.Error())
 	}
 }
