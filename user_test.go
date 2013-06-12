@@ -65,3 +65,27 @@ func TestValidateUser(t *testing.T) {
 		t.Errorf("Error %s", err.Error())
 	}
 }
+
+func TestFindUser(t *testing.T) {
+	dbh, err := setUpTest()
+	if err != nil {
+		t.Fatalf("error %s", err.Error())
+	}
+
+	u := &User{
+		Email:     "tucker@tucker.com",
+		FirstName: "tucker",
+		LastName:  "jorn",
+		Password:  "hashy",
+	}
+
+	if err := u.Create(dbh); err != nil {
+		t.Errorf("error %s", err.Error())
+	}
+
+
+	u2 := &User{Email: "tucker@tucker.com"}
+	if u2,err = u2.Find(dbh); err != nil {
+		t.Errorf("Error %s", err.Error())
+	}
+}

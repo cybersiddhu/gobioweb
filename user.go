@@ -22,6 +22,24 @@ INSERT into users(email,firstname,lastname,password)
 values(:foo,:bar,:zas,:baz)
 `
 
+const userFindStmt = `
+SELECT users.id,users.firstname,users.lastname FROM users
+WHERE users.email = ?
+`
+
+func (u *User) Find(dbh *dbi.DB) (*User, error) {
+	 var first,last string
+	 var id int64
+	 err := dbh.QueryRow(userFindStmt,u.Email).Scan(&id,&first,&last)
+	 if err != nil {
+	 		return nil,err
+	 }
+	 u.Id = id
+	 u.FirstName = first
+	 u.LastName = last
+	 return u,nil
+}
+
 func (u *User) Create(dbh *dbi.DB) error {
 	pb, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
