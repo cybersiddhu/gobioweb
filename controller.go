@@ -1,6 +1,7 @@
 package gobioweb
 
 import (
+	"github.com/gorilla/sessions"
 	"html/template"
 	"net/http"
 )
@@ -11,11 +12,16 @@ type AppError struct {
 	Code    int
 }
 
-type handlerFunc func(http.ResponseWriter, *http.Request, *template.Template) *AppError
+type App struct {
+	Template *template.Template
+	Session  *sessions.CookieStore
+}
+
+type handlerFunc func(http.ResponseWriter, *http.Request, *App) *AppError
 
 type Controller struct {
-	Template *template.Template
-	Handler  handlerFunc
+	Handler handlerFunc
+	App     *App
 }
 
 const srvErrTmpl = `
@@ -52,10 +58,11 @@ const srvErrTmpl = `
 `
 
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e := c.Handler(w, r, c.Template); e != nil {
+	t := c.App.Template
+	if e := c.Handler(w, r, c.App); e != nil {
 		if e.Code == 500 {
-			if errt := c.Template.Lookup("500.tmpl"); errt != nil {
-				err := c.Template.ExecuteTemplate(w, "500.tmpl", r)
+			if errt := t.Lookup("500.tmpl"); errt != nil {
+				err := t.ExecuteTemplate(w, "500.tmpl", r)
 				if err != nil {
 					http.Error(w, "cannot display 500.tmpl template", 500)
 				}
@@ -75,8 +82,8 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewController(h handlerFunc, t *template.Template) *Controller {
-	return &Controller{Template: t, Handler: h}
+func NewController(h handlerFunc, a *App) *Controller {
+	return &Controller{App: a, Handler: h}
 }
 
 const errTmpl = `
@@ -112,7 +119,8 @@ const errTmpl = `
 </html>
 `
 
-func NotFound(w http.ResponseWriter, r *http.Request, t *template.Template) *AppError {
+func NotFound(w http.ResponseWriter, r *http.Request, a *App) *AppError {
+	t := a.Template
 	if errort := t.Lookup("404.tmpl"); errort != nil {
 		err := t.ExecuteTemplate(w, "404.tmpl", r)
 		if err != nil {
@@ -132,7 +140,8 @@ func NotFound(w http.ResponseWriter, r *http.Request, t *template.Template) *App
 	return nil
 }
 
-func InternalError(w http.ResponseWriter, r *http.Request, t *template.Template) *AppError {
+func InternalError(w http.ResponseWriter, r *http.Request, a *App) *AppError {
+	t := a.Template
 	if errort := t.Lookup("500.tmpl"); errort != nil {
 		err := t.ExecuteTemplate(w, "500.tmpl", r)
 		if err != nil {
