@@ -73,6 +73,25 @@ func (c *Controller) Stash(key interface{}, value interface{}) {
 	 context.Set(c.Request,key,value)
 }
 
+func (c *Controller) SetFormErrors(msg string) error {
+	 session,err := c.App.Session.Get(c.Request,"form-error")
+	 if err != nil {
+	 		return err
+	 }
+	 session.AddFlash(msg)
+	 session.Save(c.Request,c.Response)
+	 return nil
+
+}
+
+func (c *Controller) FormErrors() interface{} {
+	 session,_ := c.App.Session.Get(c.Request,"form-error")
+	 if flashes := session.Flashes(); len(flashes) > 0 {
+	 		return flashes
+	 }
+	 return nil
+}
+
 
 const srvErrTmpl = `
 <!DOCTYPE html>
