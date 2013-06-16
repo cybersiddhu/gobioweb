@@ -4,6 +4,9 @@ import (
 	"github.com/gorilla/sessions"
 	"html/template"
 	"net/http"
+	dbi "database/sql"
+	"github.com/gorilla/context"
+
 )
 
 type AppError struct {
@@ -15,14 +18,61 @@ type AppError struct {
 type App struct {
 	Template *template.Template
 	Session  *sessions.CookieStore
+	Database *dbi.DB
 }
 
-type handlerFunc func(http.ResponseWriter, *http.Request, *App) *AppError
+type handlerFunc func(*Controller) *AppError
 
 type Controller struct {
 	Handler handlerFunc
 	App     *App
+	Response http.ResponseWriter
+	Request *http.Request
 }
+
+
+func NewController(h handlerFunc, a *App) *Controller {
+	return &Controller{App: a, Handler: h}
+}
+
+func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c.Response = w
+	c.Request = r
+	t := c.App.Template
+	if e := c.Handler(c); e != nil {
+		if e.Code == 500 {
+			if errt := t.Lookup("500.tmpl"); errt != nil {
+				err := t.ExecuteTemplate(w, "500.tmpl", r)
+				if err != nil {
+					http.Error(w, "cannot display 500.tmpl template", 500)
+				}
+			} else {
+				tmpT, err := template.New("Internal error template").Parse(srvErrTmpl)
+				if err != nil {
+					http.Error(w, "cannot parse internal error template", 500)
+				}
+				err = tmpT.Execute(w, r)
+				if err != nil {
+					http.Error(w, "cannot execute internal error template", 500)
+				}
+			}
+		} else {
+			http.Error(w, e.Message, e.Code)
+		}
+	}
+}
+
+func (c *Controller) GetFromStash(key interface{}) interface{} {
+	 if rv := context.Get(c.Request,key); rv != nil {
+	 		return rv
+	 }
+	 return nil
+}
+
+func (c *Controller) Stash(key interface{}, value interface{}) {
+	 context.Set(c.Request,key,value)
+}
+
 
 const srvErrTmpl = `
 <!DOCTYPE html>
@@ -57,34 +107,6 @@ const srvErrTmpl = `
 </html>
 `
 
-func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	t := c.App.Template
-	if e := c.Handler(w, r, c.App); e != nil {
-		if e.Code == 500 {
-			if errt := t.Lookup("500.tmpl"); errt != nil {
-				err := t.ExecuteTemplate(w, "500.tmpl", r)
-				if err != nil {
-					http.Error(w, "cannot display 500.tmpl template", 500)
-				}
-			} else {
-				tmpT, err := template.New("Internal error template").Parse(srvErrTmpl)
-				if err != nil {
-					http.Error(w, "cannot parse internal error template", 500)
-				}
-				err = tmpT.Execute(w, r)
-				if err != nil {
-					http.Error(w, "cannot execute internal error template", 500)
-				}
-			}
-		} else {
-			http.Error(w, e.Message, e.Code)
-		}
-	}
-}
-
-func NewController(h handlerFunc, a *App) *Controller {
-	return &Controller{App: a, Handler: h}
-}
 
 const errTmpl = `
 <!DOCTYPE html>
@@ -119,10 +141,10 @@ const errTmpl = `
 </html>
 `
 
-func NotFound(w http.ResponseWriter, r *http.Request, a *App) *AppError {
-	t := a.Template
+func NotFound(c *Controller) *AppError {
+	t := c.App.Template
 	if errort := t.Lookup("404.tmpl"); errort != nil {
-		err := t.ExecuteTemplate(w, "404.tmpl", r)
+		err := t.ExecuteTemplate(c.Response, "404.tmpl", c.Request)
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
@@ -131,7 +153,7 @@ func NotFound(w http.ResponseWriter, r *http.Request, a *App) *AppError {
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
-		err = tmpT.Execute(w, r)
+		err = tmpT.Execute(c.Response, c.Request)
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
@@ -140,10 +162,10 @@ func NotFound(w http.ResponseWriter, r *http.Request, a *App) *AppError {
 	return nil
 }
 
-func InternalError(w http.ResponseWriter, r *http.Request, a *App) *AppError {
-	t := a.Template
+func InternalError( c *Controller) *AppError {
+	t := c.App.Template
 	if errort := t.Lookup("500.tmpl"); errort != nil {
-		err := t.ExecuteTemplate(w, "500.tmpl", r)
+		err := t.ExecuteTemplate(c.Response, "500.tmpl", c.Request)
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
@@ -152,7 +174,7 @@ func InternalError(w http.ResponseWriter, r *http.Request, a *App) *AppError {
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
-		err = tmpT.Execute(w, r)
+		err = tmpT.Execute(c.Response, c.Request)
 		if err != nil {
 			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
 		}
