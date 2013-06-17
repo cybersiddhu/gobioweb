@@ -1,26 +1,12 @@
 package gobioweb
 
 import (
-	"github.com/gorilla/sessions"
 	"html/template"
 	"net/http"
-	dbi "database/sql"
 	"github.com/gorilla/context"
-
 )
 
-type AppError struct {
-	Error   error
-	Message string
-	Code    int
-	Path string
-}
 
-type App struct {
-	Template *template.Template
-	Session  sessions.Store
-	Database *dbi.DB
-}
 
 type handlerFunc func(*Controller) *AppError
 
@@ -46,7 +32,7 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if e := c.Handler(c); e != nil {
 		e.Path = r.URL.Path
-		if e.Code == 500 {
+		if e.Code == http.StatusInternalServerError {
 			if errt := t.Lookup("500.tmpl"); errt != nil {
 				err := t.ExecuteTemplate(w, "500.tmpl", e)
 				if err != nil {
