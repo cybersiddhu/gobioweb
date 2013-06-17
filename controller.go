@@ -13,11 +13,12 @@ type AppError struct {
 	Error   error
 	Message string
 	Code    int
+	Path string
 }
 
 type App struct {
 	Template *template.Template
-	Session  *sessions.CookieStore
+	Session  sessions.Store
 	Database *dbi.DB
 }
 
@@ -28,6 +29,7 @@ type Controller struct {
 	App     *App
 	Response http.ResponseWriter
 	Request *http.Request
+	Flash []interface{}
 }
 
 
@@ -39,10 +41,14 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.Response = w
 	c.Request = r
 	t := c.App.Template
+	//form errors if any
+	c.Flash = c.FormErrors()
+
 	if e := c.Handler(c); e != nil {
+		e.Path = r.URL.Path
 		if e.Code == 500 {
 			if errt := t.Lookup("500.tmpl"); errt != nil {
-				err := t.ExecuteTemplate(w, "500.tmpl", r)
+				err := t.ExecuteTemplate(w, "500.tmpl", e)
 				if err != nil {
 					http.Error(w, "cannot display 500.tmpl template", 500)
 				}
@@ -51,7 +57,7 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					http.Error(w, "cannot parse internal error template", 500)
 				}
-				err = tmpT.Execute(w, r)
+				err = tmpT.Execute(w, e)
 				if err != nil {
 					http.Error(w, "cannot execute internal error template", 500)
 				}
@@ -74,7 +80,7 @@ func (c *Controller) Stash(key interface{}, value interface{}) {
 }
 
 func (c *Controller) SetFormErrors(msg string) error {
-	 session,err := c.App.Session.Get(c.Request,"form-error")
+	 session,err := c.App.Session.Get(c.Request,"form-errors")
 	 if err != nil {
 	 		return err
 	 }
@@ -84,9 +90,10 @@ func (c *Controller) SetFormErrors(msg string) error {
 
 }
 
-func (c *Controller) FormErrors() interface{} {
-	 session,_ := c.App.Session.Get(c.Request,"form-error")
+func (c *Controller) FormErrors() []interface{} {
+	 session,_ := c.App.Session.Get(c.Request,"form-errors")
 	 if flashes := session.Flashes(); len(flashes) > 0 {
+	 		session.Save(c.Request,c.Response)
 	 		return flashes
 	 }
 	 return nil
@@ -119,7 +126,10 @@ const srvErrTmpl = `
 					<h1> Internal Server Error </h1>
 					<h2 class="red"> Error 500 </h2>
 				  <p class="lead"> 
-				   The requested page <strong> {{.URL.Path}} </strong> cannot be served 
+				   The requested page <strong> {{.Path}} </strong> cannot be served 
+				  </p>
+				  <p class="lead"> 
+						Reason: {{.Message}}  
 				  </p>
 			</div>
 	</body>
