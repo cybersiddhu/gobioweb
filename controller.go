@@ -1,90 +1,139 @@
 package gobioweb
 
 import (
+	"github.com/gorilla/context"
 	"html/template"
 	"net/http"
-	"github.com/gorilla/context"
 )
-
-
 
 type handlerFunc func(*Controller) *AppError
 
 type Controller struct {
-	Handler handlerFunc
-	App     *App
+	Handler  handlerFunc
+	App      *App
 	Response http.ResponseWriter
-	Request *http.Request
-	Flash []interface{}
+	Request  *http.Request
+	Flash    []interface{}
 }
-
 
 func NewController(h handlerFunc, a *App) *Controller {
 	return &Controller{App: a, Handler: h}
 }
 
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c.Response = w
-	c.Request = r
-	t := c.App.Template
 	//form errors if any
-	c.Flash = c.FormErrors()
+	//flash, err := c.FormErrors()
+	//if err != nil {
+		//c.ServerError(err)
+		//return
+	//}
+
+	//if flash != nil {
+		//c.Flash = flash
+	//} else {
+		//flash, err := c.Notices()
+		//if err != nil {
+			//c.ServerError(err)
+		//}
+		//if flash != nil {
+			//c.Flash = flash
+		//}
+	//}
 
 	if e := c.Handler(c); e != nil {
 		e.Path = r.URL.Path
 		if e.Code == http.StatusInternalServerError {
-			if errt := t.Lookup("500.tmpl"); errt != nil {
-				err := t.ExecuteTemplate(w, "500.tmpl", e)
-				if err != nil {
-					http.Error(w, "cannot display 500.tmpl template", 500)
-				}
-			} else {
-				tmpT, err := template.New("Internal error template").Parse(srvErrTmpl)
-				if err != nil {
-					http.Error(w, "cannot parse internal error template", 500)
-				}
-				err = tmpT.Execute(w, e)
-				if err != nil {
-					http.Error(w, "cannot execute internal error template", 500)
-				}
-			}
+			c.ServerError(e)
 		} else {
-			http.Error(w, e.Message, e.Code)
+			http.Error(c.Response, e.Message, e.Code)
+		}
+	}
+}
+
+func (c *Controller) ServerError(e *AppError) {
+	w := c.Response
+	t := c.App.Template
+	if errt := t.Lookup("500.tmpl"); errt != nil {
+		err := t.ExecuteTemplate(w, "500.tmpl", e)
+		if err != nil {
+			http.Error(w, "cannot display 500.tmpl template", 500)
+		}
+	} else {
+		tmpT, err := template.New("Internal error template").Parse(srvErrTmpl)
+		if err != nil {
+			http.Error(w, "cannot parse internal error template", 500)
+		}
+		err = tmpT.Execute(w, e)
+		if err != nil {
+			http.Error(w, "cannot execute internal error template", 500)
 		}
 	}
 }
 
 func (c *Controller) GetFromStash(key interface{}) interface{} {
-	 if rv := context.Get(c.Request,key); rv != nil {
-	 		return rv
-	 }
-	 return nil
+	if rv := context.Get(c.Request, key); rv != nil {
+		return rv
+	}
+	return nil
 }
 
 func (c *Controller) Stash(key interface{}, value interface{}) {
-	 context.Set(c.Request,key,value)
+	context.Set(c.Request, key, value)
 }
 
 func (c *Controller) SetFormErrors(msg string) error {
-	 session,err := c.App.Session.Get(c.Request,"form-errors")
-	 if err != nil {
-	 		return err
-	 }
-	 session.AddFlash(msg)
-	 session.Save(c.Request,c.Response)
-	 return nil
+	session, err := c.App.Session.Get(c.Request, "flashes")
+	if err != nil {
+		return err
+	}
+	session.AddFlash("form-errors", msg)
+	session.Save(c.Request, c.Response)
+	return nil
 
 }
 
-func (c *Controller) FormErrors() []interface{} {
-	 session,_ := c.App.Session.Get(c.Request,"form-errors")
-	 if flashes := session.Flashes(); len(flashes) > 0 {
-	 		session.Save(c.Request,c.Response)
-	 		return flashes
-	 }
-	 return nil
+func (c *Controller) FormErrors() ([]interface{}, *AppError) {
+	session, err := c.App.Session.Get(c.Request, "flashes")
+	if err != nil {
+		return nil, &AppError{
+			Code:    http.StatusInternalServerError,
+			Error:   err,
+			Message: err.Error(),
+		}
+	}
+	if flashes := session.Flashes("form-errors"); len(flashes) > 0 {
+		session.Save(c.Request, c.Response)
+		return flashes, nil
+	}
+	return nil, nil
 }
 
+func (c *Controller) Notices(values ...string) ([]interface{}, *AppError) {
+	session, err := c.App.Session.Get(c.Request, "flashes")
+	if err != nil {
+		return nil, &AppError{
+			Code:    http.StatusInternalServerError,
+			Error:   err,
+			Message: err.Error(),
+		}
+	}
+
+	//set function
+	if len(values) > 0 {
+		for _, val := range values {
+			session.AddFlash("notices", val)
+			session.Save(c.Request, c.Response)
+		}
+		return nil, nil
+	}
+
+	//get function
+	if flashes := session.Flashes("notices"); len(flashes) > 0 {
+		session.Save(c.Request, c.Response)
+		return flashes, nil
+	}
+	return nil, nil
+}
 
 const srvErrTmpl = `
 <!DOCTYPE html>
@@ -121,7 +170,6 @@ const srvErrTmpl = `
 	</body>
 </html>
 `
-
 
 const errTmpl = `
 <!DOCTYPE html>
@@ -177,7 +225,7 @@ func NotFound(c *Controller) *AppError {
 	return nil
 }
 
-func InternalError( c *Controller) *AppError {
+func InternalError(c *Controller) *AppError {
 	t := c.App.Template
 	if errort := t.Lookup("500.tmpl"); errort != nil {
 		err := t.ExecuteTemplate(c.Response, "500.tmpl", c.Request)
