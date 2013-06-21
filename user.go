@@ -27,6 +27,24 @@ SELECT users.id,users.firstname,users.lastname FROM users
 WHERE users.email = ?
 `
 
+const userFindStmt2 = `
+SELECT user.email,users.firstname,users.lastname FROM users
+WHERE users.id = ?
+`
+
+
+func (u *User) FindById(dbh *dbi.DB) (*User, error) {
+	 var first,last,email string
+	 err := dbh.QueryRow(userFindStmt2,u.Id).Scan(&email,&first,&last)
+	 if err != nil {
+	 		return nil,err
+	 }
+	 u.FirstName = first
+	 u.LastName = last
+	 u.Email = email
+	 return u,nil
+}
+
 func (u *User) Find(dbh *dbi.DB) (*User, error) {
 	 var first,last string
 	 var id int64
