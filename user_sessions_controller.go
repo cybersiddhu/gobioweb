@@ -24,24 +24,24 @@ func (c *Controller) DeleteUserSession() error {
 	return nil
 }
 
-func (c *Controller) CurrentUser()(*User, error) {
+func (c *Controller) CurrentUser() (*User, error) {
 	session, err := c.App.Session.Get(c.Request, SessionName)
 	if err != nil {
 		return nil, err
 	}
 
 	if id, ok := session.Values["user_id"]; ok {
-		 u := &User{Id:id.(int64)}
-		 u.FindById(c.App.Database)
-		 return u,nil
+		u := &User{Id: id.(int64)}
+		u.FindById(c.App.Database)
+		return u, nil
 	}
-	return nil,nil
+	return nil, nil
 }
 
 func (c *Controller) IsLoggedIn() bool {
 	session, _ := c.App.Session.Get(c.Request, SessionName)
 	if _, ok := session.Values["user_id"]; ok {
-		 return true
+		return true
 	}
 	return false
 }

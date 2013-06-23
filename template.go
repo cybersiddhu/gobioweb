@@ -12,6 +12,7 @@ type TemplateCache struct {
 	Path        string
 }
 
+
 func NewTemplateCache() (tc *TemplateCache, err error) {
 	tc = &TemplateCache{}
 	tc.GlobPattern = "*.tmpl"
@@ -28,7 +29,7 @@ func (t *TemplateCache) CacheEntriesFromPath(path string) {
 	t.Cache = template.Must(template.ParseGlob(fullPath))
 }
 
-func (t *TemplateCache) CacheEntriesFromGlob(glob string ) {
+func (t *TemplateCache) CacheEntriesFromGlob(glob string) {
 	fullPath := filepath.Join(t.Path, glob)
 	t.Cache = template.Must(template.ParseGlob(fullPath))
 }

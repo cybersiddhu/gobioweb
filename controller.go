@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/context"
 	"html/template"
 	"net/http"
+	"path/filepath"
 )
 
 type handlerFunc func(*Controller) *AppError
@@ -21,24 +22,27 @@ func NewController(h handlerFunc, a *App) *Controller {
 }
 
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//form errors if any
-	//flash, err := c.FormErrors()
-	//if err != nil {
-		//c.ServerError(err)
-		//return
-	//}
+	c.Request = r
+	c.Response = w
 
-	//if flash != nil {
-		//c.Flash = flash
-	//} else {
-		//flash, err := c.Notices()
-		//if err != nil {
-			//c.ServerError(err)
-		//}
-		//if flash != nil {
-			//c.Flash = flash
-		//}
-	//}
+	//	form errors if any
+	flash, err := c.FormErrors()
+	if err != nil {
+		c.ServerError(err)
+		return
+	}
+
+	if flash != nil {
+		c.Flash = flash
+	} else {
+		flash, err := c.Notices()
+		if err != nil {
+			c.ServerError(err)
+		}
+		if flash != nil {
+			c.Flash = flash
+		}
+	}
 
 	if e := c.Handler(c); e != nil {
 		e.Path = r.URL.Path
@@ -53,12 +57,8 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) ServerError(e *AppError) {
 	w := c.Response
 	t := c.App.Template
-	if errt := t.Lookup("500.tmpl"); errt != nil {
-		err := t.ExecuteTemplate(w, "500.tmpl", e)
-		if err != nil {
-			http.Error(w, "cannot display 500.tmpl template", 500)
-		}
-	} else {
+	tmpl, err := template.New("500").ParseFiles(filepath.Join(t.Path, "500.tmpl"))
+	if err != nil {
 		tmpT, err := template.New("Internal error template").Parse(srvErrTmpl)
 		if err != nil {
 			http.Error(w, "cannot parse internal error template", 500)
@@ -67,7 +67,34 @@ func (c *Controller) ServerError(e *AppError) {
 		if err != nil {
 			http.Error(w, "cannot execute internal error template", 500)
 		}
+	} else {
+		err := tmpl.Execute(w, e)
+		if err != nil {
+			http.Error(w, "cannot display 500.tmpl template", 500)
+		}
 	}
+}
+
+func NotFound(c *Controller) *AppError {
+	t := c.App.Template
+	tmpl, err := template.New("400").ParseFiles(filepath.Join(t.Path, "400.tmpl"))
+	if err != nil {
+		tmpT, err := template.New("error template").Parse(errTmpl)
+		if err != nil {
+			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
+		}
+		err = tmpT.Execute(c.Response, c.Request)
+		if err != nil {
+			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
+		}
+
+	} else {
+		err := tmpl.Execute(c.Response, c.Request)
+		if err != nil {
+			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
+		}
+	}
+	return nil
 }
 
 func (c *Controller) GetFromStash(key interface{}) interface{} {
@@ -203,45 +230,3 @@ const errTmpl = `
 	</body>
 </html>
 `
-
-func NotFound(c *Controller) *AppError {
-	t := c.App.Template
-	if errort := t.Lookup("404.tmpl"); errort != nil {
-		err := t.ExecuteTemplate(c.Response, "404.tmpl", c.Request)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-	} else {
-		tmpT, err := template.New("error template").Parse(errTmpl)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-		err = tmpT.Execute(c.Response, c.Request)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-
-	}
-	return nil
-}
-
-func InternalError(c *Controller) *AppError {
-	t := c.App.Template
-	if errort := t.Lookup("500.tmpl"); errort != nil {
-		err := t.ExecuteTemplate(c.Response, "500.tmpl", c.Request)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-	} else {
-		tmpT, err := template.New("error template").Parse(errTmpl)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-		err = tmpT.Execute(c.Response, c.Request)
-		if err != nil {
-			return &AppError{Error: err, Code: 500, Message: "Cannot display template"}
-		}
-
-	}
-	return nil
-}

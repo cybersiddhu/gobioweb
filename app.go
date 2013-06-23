@@ -3,11 +3,10 @@ package gobioweb
 import (
 	dbi "database/sql"
 	"github.com/gorilla/sessions"
-	"html/template"
 )
 
 type App struct {
-	Template *template.Template
+	Template *TemplateWithLayout
 	Session  sessions.Store
 	Database *dbi.DB
 }
