@@ -113,7 +113,7 @@ func (c *Controller) SetFormErrors(msg string) error {
 	if err != nil {
 		return err
 	}
-	session.AddFlash("form-errors", msg)
+	session.AddFlash(msg)
 	session.Save(c.Request, c.Response)
 	return nil
 
@@ -128,7 +128,7 @@ func (c *Controller) FormErrors() ([]interface{}, *AppError) {
 			Message: err.Error(),
 		}
 	}
-	if flashes := session.Flashes("form-errors"); len(flashes) > 0 {
+	if flashes := session.Flashes(); len(flashes) > 0 {
 		session.Save(c.Request, c.Response)
 		return flashes, nil
 	}
@@ -136,7 +136,7 @@ func (c *Controller) FormErrors() ([]interface{}, *AppError) {
 }
 
 func (c *Controller) Notices(values ...string) ([]interface{}, *AppError) {
-	session, err := c.App.Session.Get(c.Request, "flashes")
+	session, err := c.App.Session.Get(c.Request, "notices")
 	if err != nil {
 		return nil, &AppError{
 			Code:    http.StatusInternalServerError,
@@ -148,14 +148,14 @@ func (c *Controller) Notices(values ...string) ([]interface{}, *AppError) {
 	//set function
 	if len(values) > 0 {
 		for _, val := range values {
-			session.AddFlash("notices", val)
+			session.AddFlash(val)
 			session.Save(c.Request, c.Response)
 		}
 		return nil, nil
 	}
 
 	//get function
-	if flashes := session.Flashes("notices"); len(flashes) > 0 {
+	if flashes := session.Flashes(); len(flashes) > 0 {
 		session.Save(c.Request, c.Response)
 		return flashes, nil
 	}
