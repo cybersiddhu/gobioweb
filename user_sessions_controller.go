@@ -1,6 +1,6 @@
 package gobioweb
 
-import "fmt"
+import "reflect"
 
 var SessionName string = "user_session"
 
@@ -10,7 +10,6 @@ func (c *Controller) SaveUserSession(u *User) error {
 		return err
 	}
 
-	fmt.Printf("got id to save %d\n",u.Id)
 	session.Values["user_id"] = u.Id
 	session.Save(c.Request, c.Response)
 	return nil
@@ -35,10 +34,7 @@ func (c *Controller) CurrentUser() (*User, error) {
 	}
 
 	if id, ok := session.Values["user_id"]; ok {
-		fmt.Printf("got id %d\n",id)
-		u := &User{Id: id.(int64)}
-		newuser,_ := u.FindById(c.App.Database)
-		fmt.Printf("name:%s email:%s\n",newuser.FirstName,newuser.Email)
+		newuser, _ := FindUserById(c.App.Database, reflect.ValueOf(id).Int())
 		return newuser, nil
 	}
 	return nil, nil

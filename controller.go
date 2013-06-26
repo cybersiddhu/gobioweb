@@ -172,10 +172,10 @@ const srvErrTmpl = `
 		rel="stylesheet">
 		<style type="text/css">
 		  .center {
-		  					text-align: center; 
-		  					margin-left: auto; 
-		  					margin-right: auto; 
-		  					margin-bottom: auto; 
+		  					text-align: center;
+		  					margin-left: auto;
+		  					margin-right: auto;
+		  					margin-bottom: auto;
 		  					margin-top: auto;
 		  				}
 		  h2.red {
@@ -187,11 +187,11 @@ const srvErrTmpl = `
 			<div class="hero-unit center">
 					<h1> Internal Server Error </h1>
 					<h2 class="red"> Error 500 </h2>
-				  <p class="lead"> 
-				   The requested page <strong> {{.Path}} </strong> cannot be served 
+				  <p class="lead">
+				   The requested page <strong> {{.Path}} </strong> cannot be served
 				  </p>
-				  <p class="lead"> 
-						Reason: {{.Message}}  
+				  <p class="lead">
+						Reason: {{.Message}}
 				  </p>
 			</div>
 	</body>
@@ -208,10 +208,10 @@ const errTmpl = `
 		rel="stylesheet">
 		<style type="text/css">
 		  .center {
-		  					text-align: center; 
-		  					margin-left: auto; 
-		  					margin-right: auto; 
-		  					margin-bottom: auto; 
+		  					text-align: center;
+		  					margin-left: auto;
+		  					margin-right: auto;
+		  					margin-bottom: auto;
 		  					margin-top: auto;
 		  				}
 		  h2.red {
@@ -223,8 +223,8 @@ const errTmpl = `
 			<div class="hero-unit center">
 					<h1> Page Not Found </h1>
 					<h2 class="red"> Error 404 </h2>
-				  <p class="lead"> 
-				   The requested page <strong> {{.URL.Path}} </strong> could not be found 
+				  <p class="lead">
+				   The requested page <strong> {{.URL.Path}} </strong> could not be found
 				  </p>
 			</div>
 	</body>

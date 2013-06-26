@@ -28,7 +28,7 @@ WHERE users.email = ?
 `
 
 const userFindStmt2 = `
-SELECT user.email,users.firstname,users.lastname FROM users
+SELECT users.email,users.firstname,users.lastname FROM users
 WHERE users.id = ?
 `
 
@@ -77,7 +77,7 @@ func (u *User) FindById(dbh *dbi.DB) (*User, error) {
 	return u, nil
 }
 
-func CreateUser(dbh *dbi.DB, u *User) (*User, error) {
+func CreateDbUser(dbh *dbi.DB, u *User) (*User, error) {
 	pb, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
